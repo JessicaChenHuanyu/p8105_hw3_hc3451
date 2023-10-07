@@ -72,3 +72,23 @@ mean_hour_pivot
 ```
 
 # Problem 2
+```{r}
+# Data Cleaning
+library(p8105.datasets)
+data("brfss_smart2010")
+
+brfss_smart2010 <- janitor::clean_names(brfss_smart2010)
+response_order <- c("Poor", "Fair", "Good", "Very good", "Excellent")
+brfss_smart2010_health <- brfss_smart2010 |>
+  filter(topic == 'Overall Health') |>
+  # filter(response == c("Poor", "Fair", "Good", "Very good", "Excellent")) |>
+  mutate(response_order = match(response, response_order)) |>
+  arrange(response_order)
+  # select(response)
+write.csv(brfss_smart2010_health, "brfss_smart2010_health.csv", row.names = FALSE)
+```
+
+```{r}
+
+```
+
