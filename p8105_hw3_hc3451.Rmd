@@ -6,11 +6,13 @@ output: github_document
 ---
 
 # Problem 1
+
 ```{r setup, include=FALSE}
 library(p8105.datasets)
 data("instacart")
 ```
 
+## Conclusion:
 This dataset has 1,384,617 rows and 15 variables. This dataset is a Tabular structure with each row representing an order and each column representing an attribute. Key variables include order_id: identifier for the order; aisle_id: identifier for the aisle; product_id: identifier for the product; aisle: name of the aisle; product_name: name of the product, etc.
 
 ```{r}
@@ -72,6 +74,7 @@ mean_hour_pivot
 ```
 
 # Problem 2
+
 ```{r}
 # Data Cleaning
 library(p8105.datasets)
@@ -89,6 +92,7 @@ write.csv(brfss_smart2010_health, "brfss_smart2010_health.csv", row.names = FALS
 ```
 
 In 2002, which states were observed at 7 or more locations? What about in 2010?
+
 ```{r}
 states_observed_2002 <- brfss_smart2010_health |>
   filter(year == 2002) |>
@@ -112,6 +116,7 @@ print(states_observed_2010)
 ```
 
 Construct a dataset that is limited to `Excellent` responses, and contains, year, state, and a variable that averages the `data_value` across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the `geom_line` geometry and `group` aesthetic will help).
+
 ```{r}
 excellent_responses <- brfss_smart2010_health |>
   filter(response == "Excellent")
@@ -125,6 +130,9 @@ ggplot(average_data_value, aes(x = year, y = average_data_value, group = locatio
   labs(x = "Year", y = "Average Data Value", title = "Average Data Value Over Time within a State (Excellent Responses)")
 ```
 
+## Conclusion:
+We can find that the average data value varies among the year as well as different states.
+
 Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
 ```{r}
 ny_data_2006_2010 <- brfss_smart2010_health |>
@@ -132,8 +140,108 @@ ny_data_2006_2010 <- brfss_smart2010_health |>
 
 ggplot(ny_data_2006_2010, aes(x = response, y = data_value, fill = response)) +
   geom_boxplot() +
-  facet_wrap(~ year, ncol = 1) +
-  labs(x = "Response", y = "Data Value", title = "Distribution of Data Value for NY State (2006 and 2010)")
+  facet_wrap(~ year, ncol = 2) +
+  labs(x = "Response", y = "Data Value", 
+       title = "Distribution of Data Value for NY State (2006 and 2010)") +
+  guides(fill = FALSE) +
+  theme_minimal()
 ```
 
+## Conclusion:
+
+We can observe a similar distribution in 2006 and 2010. The response "good" has the highest average data value and the response "poor" has the lowest average data value.
+
 # Problem 3
+
+```{r}
+library(tidyr)
+nhanes_covar <- read.csv("./nhanes_covar.csv", skip = 4)
+
+nhanes_covar_filter <- drop_na(nhanes_covar) |>
+  filter(age >= 21) |>
+  mutate(sex = ifelse(sex == 1, "male", "female")) |>
+  mutate(education = case_when(
+    education == 1 ~ "Less than high school",
+    education == 2 ~ "High school equivalent",
+    education == 3 ~ "More than high school",
+    )) |>
+  arrange(sex, age, education) |>
+  mutate(education = factor(education, levels = c("Less than high school", "High school equivalent", "More than high school"), ordered = TRUE))
+head(nhanes_covar_filter)
+```
+
+```{r}
+# Merge
+nhanes_accel <- read.csv("./nhanes_accel.csv")
+nhanes_accel_filter <- nhanes_accel |>
+  filter(SEQN %in% nhanes_covar_filter$SEQN)
+
+merged_nhanes <- inner_join(nhanes_accel_filter, nhanes_covar_filter, by = "SEQN")
+merged_nhanes <- merged_nhanes |>
+  select(SEQN, sex, age, BMI, education, everything())
+```
+
+```{r}
+library(ggplot2)
+# The number of men and women in each education category
+education_counts <- merged_nhanes |>
+  group_by(education, sex) |>
+  summarise(count = n())
+education_counts
+
+# Create Plot
+age_distribution_plot = ggplot(merged_nhanes, aes(x = education, y = age, fill = sex)) +
+  geom_boxplot() +
+  labs(title = "Age Distributions by Sex and Education",
+       x = "Education Level",
+       y = "Age") +
+  theme_minimal()
+age_distribution_plot
+```
+
+## Conclusion:
+
+At education levels less than high school and more than high school, the mean age value is comparable for males and females. Females have a higher mean age than males at the high school equivalent education level.
+
+```{r}
+combine_minutes <- merged_nhanes |>
+  pivot_longer(min1:min1440, names_to = "time_min", values_to = "mins") |>
+  na.omit()
+
+total_min <- combine_minutes |>
+  group_by(SEQN, sex, age, BMI, education) |>
+  summarise(total = sum(mins)) 
+head(total_min)
+```
+
+```{r}
+# Total Activity vs. Age by Education Level
+total_min_plot <- ggplot(total_min, aes(x = age, y = total, color = sex)) +
+  geom_point()  +
+  geom_smooth(se=FALSE) +
+  facet_wrap(~ education, ncol = 3) +
+  labs(title = "Total Activity vs. Age by Education Level",
+       x = "Age",
+       y = "Total Activity") +
+  theme_minimal()
+total_min_plot
+```
+
+## Conclusion
+
+After roughly 60 years old, the overall activity value decreases with age approximately. Males are more active than females with less than a high school degree. Females have greater activity than males at the high school equivalent and higher education levels.
+
+```{r}
+activity_time_plot <- ggplot(combine_minutes, aes(x = time_min, y = mins, color = sex)) +
+  geom_point()  +
+  geom_smooth(se = FALSE) +
+  facet_wrap(~ education, ncol = 1) +
+  labs(title = "24-Hour Activity Time Courses by Education Level",
+       x = "Time",
+       y = "Activity")
+activity_time_plot
+```
+
+## Conclusion
+
+The trends between gender are similar, indicating that there is no significant difference for their activity between male and female. And the trends in three educational levels are similar, indicating that there is no significant difference for activity among educational levels.
